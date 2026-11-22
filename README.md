@@ -11,8 +11,10 @@ to the entry before the alarm fills.
   the game files and the screenshots to `MAKEFUN_OUTPUT_DIR`.
 - `screenshots/` holds the three captured frames.
 
-Controls: WASD or arrow keys to move, `R` to restart after a win or a loss.
+Controls: WASD or arrow keys to move, `Space` or a click to throw a noisemaker
+at the pointer, `R` to restart after a win or a loss.
 
 Guards and cameras both raise the alarm while they can see the thief, and the
 alarm only drains slowly once sight is broken, so the safe route is rarely the
-short one.
+short one. Three noisemakers pull nearby guards to where they land, which is the
+only way past a cone that never leaves its post.

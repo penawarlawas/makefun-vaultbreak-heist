@@ -23,6 +23,7 @@ const COLORS = {
   alarmGreen: "#22c55e",
   alarmGold: "#eab308",
   alarmRed: "#ef4444",
+  noise: "#f472b6",
 };
 
 const PANEL = {
@@ -128,6 +129,26 @@ function drawGuard(ctx, guard, alertRatio) {
   ctx.fill();
 }
 
+function drawPings(ctx, state) {
+  for (const p of state.pings) {
+    const life = p.time / 2.5;
+    const radius = (1 - life) * 240;
+    ctx.strokeStyle = `rgba(244, 114, 182, ${life * 0.7})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = COLORS.noise;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COLORS.text;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 function drawWalls(ctx, walls) {
   for (const w of walls) {
     ctx.fillStyle = COLORS.wall;
@@ -163,10 +184,15 @@ function drawThief(ctx, state) {
 }
 
 function drawTopLeftPanel(ctx, state) {
-  const lines = ["VAULTBREAK", state.hasLoot ? "Escape to EXIT with the loot." : "Reach LOOT without being seen."];
+  const lines = [
+    "VAULTBREAK",
+    state.hasLoot ? "Escape to EXIT with the loot." : "Reach LOOT without being seen.",
+    "NOISEMAKERS: " + state.noisemakers,
+  ];
   // Size the panel to the widest line so the objective never spills out.
   ctx.font = PANEL.font;
-  const w = Math.max(210, Math.ceil(ctx.measureText(lines[1]).width) + PANEL.pad * 2 + 4);
+  const widest = Math.max(...lines.map((l) => ctx.measureText(l).width));
+  const w = Math.max(210, Math.ceil(widest) + PANEL.pad * 2 + 4);
   const h = PANEL.pad * 2 + lines.length * PANEL.line;
   drawPanel(ctx, 12, 12, w, h);
   ctx.fillStyle = COLORS.text;
@@ -177,6 +203,8 @@ function drawTopLeftPanel(ctx, state) {
   ctx.fillStyle = COLORS.textDim;
   ctx.font = PANEL.font;
   ctx.fillText(lines[1], 12 + PANEL.pad, 12 + PANEL.pad + PANEL.line);
+  ctx.fillStyle = COLORS.noise;
+  ctx.fillText(lines[2], 12 + PANEL.pad, 12 + PANEL.pad + PANEL.line * 2);
 }
 
 function drawAlarmPanel(ctx, state) {
@@ -249,6 +277,7 @@ export function render(ctx, state) {
   for (const cam of state.level.cameras) drawCamera(ctx, cam);
   for (const g of state.level.guards) drawGuard(ctx, g, state.alarm / 100);
   drawWalls(ctx, state.level.walls);
+  drawPings(ctx, state);
   drawThief(ctx, state);
   drawTopLeftPanel(ctx, state);
   drawAlarmPanel(ctx, state);

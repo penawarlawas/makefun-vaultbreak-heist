@@ -1,5 +1,7 @@
 import { WIDTH, HEIGHT, TILE, PLAYER, GUARD, CAMERA, ALARM, parseLevel, blocked, segmentBlocked, angleDiff } from "./level.js";
 
+export const NOISEMAKER = { count: 3, radius: 240, duration: 2.5 };
+
 export function createState(seed = Date.now()) {
   const level = parseLevel();
   return {
@@ -12,13 +14,28 @@ export function createState(seed = Date.now()) {
     seed,
     rng: mulberry32(seed),
     seenTimer: 0,
+    noisemakers: NOISEMAKER.count,
+    pings: [],
   };
+}
+
+export function throwNoisemaker(state, x, y) {
+  if (state.noisemakers <= 0) return false;
+  state.noisemakers -= 1;
+  state.pings.push({
+    x: Math.max(0, Math.min(WIDTH, x)),
+    y: Math.max(0, Math.min(HEIGHT, y)),
+    time: NOISEMAKER.duration,
+  });
+  return true;
 }
 
 export function step(state, input, dt) {
   if (state.caught || state.won) return;
   moveThief(state, input, dt);
   updateLoot(state);
+  for (const p of state.pings) p.time -= dt;
+  state.pings = state.pings.filter((p) => p.time > 0);
   updateGuards(state, dt);
   updateCameras(state, dt);
   updateAlarm(state, dt);
@@ -60,8 +77,9 @@ function updateLoot(state) {
 function updateGuards(state, dt) {
   let seen = false;
   for (const g of state.level.guards) {
+    const distraction = state.pings.find((p) => Math.hypot(g.x - p.x, g.y - p.y) < NOISEMAKER.radius);
     const chasing = g.alert > 45;
-    pickGuardMove(state, g, dt);
+    pickGuardMove(state, g, dt, distraction || (chasing ? state.thief : g.target));
     const toThief = Math.atan2(state.thief.y - g.y, state.thief.x - g.x);
     const dist = Math.hypot(state.thief.x - g.x, state.thief.y - g.y);
     const inCone = dist < GUARD.visionRange && Math.abs(angleDiff(toThief, g.angle)) < GUARD.visionHalfAngle;
@@ -79,15 +97,15 @@ function updateGuards(state, dt) {
   if (seen) state.seenTimer = 0.3;
 }
 
-function pickGuardMove(state, g, dt) {
+function pickGuardMove(state, g, dt, target) {
   if (!g.target || Math.hypot(g.x - g.target.x, g.y - g.target.y) < 8) {
     g.target = randomReachablePoint(state, g);
   }
-  const chasing = g.alert > 45;
-  const target = chasing ? state.thief : g.target;
+  // A guard with no target yet, or a caller passing none, walks to its own.
+  if (!target) target = g.target;
   const desired = Math.atan2(target.y - g.y, target.x - g.x);
   g.angle = approachAngle(g.angle, desired, GUARD.turnRate * dt);
-  const speed = chasing ? GUARD.chaseSpeed : GUARD.speed;
+  const speed = target === state.thief ? GUARD.chaseSpeed : GUARD.speed;
   const nx = g.x + Math.cos(g.angle) * speed * dt;
   const ny = g.y + Math.sin(g.angle) * speed * dt;
   if (!blocked(state.level.walls, nx, g.y, GUARD.radius)) g.x = nx;

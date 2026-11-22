@@ -1,4 +1,4 @@
-import { createState, step } from "./sim.js";
+import { createState, step, throwNoisemaker } from "./sim.js";
 import { render } from "./render.js";
 import { WIDTH, HEIGHT, ALARM } from "./level.js";
 
@@ -31,14 +31,49 @@ export function main() {
 function runGame(canvas, ctx) {
   let state = createState();
   const input = { left: false, right: false, up: false, down: false };
+  const pointer = { x: state.thief.x, y: state.thief.y, has: false };
+
+  const throwAtPointer = () => {
+    if (state.caught || state.won) return;
+    let x = pointer.x;
+    let y = pointer.y;
+    if (!pointer.has) {
+      let dx = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+      let dy = (input.down ? 1 : 0) - (input.up ? 1 : 0);
+      if (dx === 0 && dy === 0) { dx = 1; dy = 0; }
+      const len = Math.hypot(dx, dy);
+      x = state.thief.x + (dx / len) * 120;
+      y = state.thief.y + (dy / len) * 120;
+    }
+    throwNoisemaker(state, x, y);
+  };
 
   window.addEventListener("keydown", (e) => {
+    if (e.code === "Space" || e.key === " ") {
+      e.preventDefault();
+      throwAtPointer();
+    }
     setKey(input, e.key, true);
     if ((state.caught || state.won) && (e.key === "r" || e.key === "R")) {
       state = createState();
     }
   });
   window.addEventListener("keyup", (e) => setKey(input, e.key, false));
+
+  canvas.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = (e.clientX - rect.left) * (WIDTH / rect.width);
+    pointer.y = (e.clientY - rect.top) * (HEIGHT / rect.height);
+    pointer.has = true;
+  });
+  canvas.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return;
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = (e.clientX - rect.left) * (WIDTH / rect.width);
+    pointer.y = (e.clientY - rect.top) * (HEIGHT / rect.height);
+    pointer.has = true;
+    throwAtPointer();
+  });
 
   let accumulator = 0;
   let last = performance.now();
